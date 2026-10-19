@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
 import questionRoutes from "./routes/questionRoutes.js";
 import assessmentRoutes from "./routes/assessmentRoutes.js";
+import candidateRoutes from "./routes/candidateRoutes.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/assessments", assessmentRoutes);
+app.use("/api/candidate", candidateRoutes);
 
 await mongoose.connect(process.env.MONGO_URI);
 console.log("MongoDB connected");
