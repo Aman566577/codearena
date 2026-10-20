@@ -1,6 +1,8 @@
 import Assessment from "../models/Assessment.js";
 import AssessmentAttempt from "../models/AssessmentAttempt.js";
 import Question from "../models/Question.js";
+import { z } from "zod";
+import Draft from "../models/Draft.js";
 
 // Candidate: list my assigned assessments with status
 export async function myAssessments(req, res) {
@@ -97,4 +99,55 @@ export async function getAttempt(req, res) {
     assessment: { title: assessment.title, duration: assessment.duration },
     questions,
   });
+}
+
+const draftInput = z.object({
+  questionId: z.string().length(24),
+  language: z.enum(["python", "java"]),
+  sourceCode: z.string().max(50000),
+});
+
+// Candidate: autosave code (rejected after deadline)
+export async function saveDraft(req, res) {
+  const parsed = draftInput.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: "Invalid input", errors: parsed.error.issues });
+  }
+  const { questionId, language, sourceCode } = parsed.data;
+
+  const attempt = await AssessmentAttempt.findOne({
+    _id: req.params.attemptId,
+    candidateId: req.user._id,
+  });
+  if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+
+  if (attempt.status !== "in_progress" || new Date() > attempt.deadline) {
+    return res.status(403).json({ message: "Attempt is closed" });
+  }
+
+  const assessment = await Assessment.findById(attempt.assessmentId);
+  if (!assessment.questionIds.some((id) => String(id) === questionId)) {
+    return res.status(400).json({ message: "Question is not part of this assessment" });
+  }
+
+  const draft = await Draft.findOneAndUpdate(
+    { attemptId: attempt._id, questionId, language },
+    { sourceCode },
+    { upsert: true, new: true }
+  );
+  res.json({ savedAt: draft.updatedAt });
+}
+
+// Candidate: load saved code (for page reload)
+export async function getDrafts(req, res) {
+  const attempt = await AssessmentAttempt.findOne({
+    _id: req.params.attemptId,
+    candidateId: req.user._id,
+  });
+  if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+
+  const drafts = await Draft.find({ attemptId: attempt._id }).select(
+    "questionId language sourceCode updatedAt"
+  );
+  res.json({ drafts });
 }
