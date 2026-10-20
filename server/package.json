@@ -8,7 +8,7 @@
     "dev": "nodemon src/index.js",
     "worker": "nodemon src/workers/evaluationWorker.js",
     "spike": "node src/scripts/judge0Spike.js",
-    "test": "vitest run"
+    "test": "vitest run --no-file-parallelism"
   },
   "keywords": [],
   "author": "",
